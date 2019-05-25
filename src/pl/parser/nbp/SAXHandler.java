@@ -9,6 +9,7 @@ public class SAXHandler extends DefaultHandler {
 
     private boolean foundCurrency = false;
     private boolean isCurrencyName = false, isSellingPrice = false, isBuyingPrice = false;
+    private boolean justStarted = false;
 
     private String searchedCurrency;
     private double sellingPrice, buyingPrice;
@@ -18,8 +19,8 @@ public class SAXHandler extends DefaultHandler {
     }
 
     @Override
-    public void startDocument() throws SAXException {
-
+    public void startDocument(){
+        justStarted = true;
     }
 
     @Override
@@ -46,7 +47,7 @@ public class SAXHandler extends DefaultHandler {
     }
 
     @Override
-    public void startElement(String uri, String localName, String qName, Attributes attributes) {
+    public void startElement(String uri, String localName, String qName, Attributes attributes) throws SAXException {
         if(qName.equals("kod_waluty"))
             isCurrencyName = true;
         else if(foundCurrency){
@@ -56,10 +57,15 @@ public class SAXHandler extends DefaultHandler {
                 isSellingPrice = true;
 
         }
+        else if(justStarted){
+            if(!qName.equals("tabela_kursow"))
+                throw new SAXException("There is something wrong with XML file.");
+            justStarted = false;
+        }
     }
 
     @Override
     public void endDocument() throws SAXException {
-
+        throw new SAXException("Wrong currency name!");
     }
 }

@@ -16,27 +16,30 @@ import java.util.OptionalDouble;
 
 import static pl.parser.nbp.HTTPRequest.sendRequest;
 
-public class NAPCurrencyCalculator {
+class NAPCurrencyCalculator {
 
-    private String searchedCurency;
+    private String searchedCurrency;
     private List<Double> sellPrices;
     private List<Double> buyPrices;
     private List<String> filenames;
 
-    public NAPCurrencyCalculator(String searchedCurency) {
-        this.searchedCurency = searchedCurency;
+    NAPCurrencyCalculator(String searchedCurrency) {
+        this.searchedCurrency = searchedCurrency;
         sellPrices = new ArrayList<>();
         buyPrices = new ArrayList<>();
         filenames = new ArrayList<>();
     }
 
-    public void parse() throws ParserConfigurationException, SAXException, IOException {
+    void parse() throws ParserConfigurationException, SAXException, IOException {
         SAXParserFactory parserFactory = SAXParserFactory.newInstance();
         SAXParser saxParser = parserFactory.newSAXParser();
-        SAXHandler handler = new SAXHandler(searchedCurency);
+        SAXHandler handler = new SAXHandler(searchedCurrency);
+        long timer = 0;
         for (String filename : filenames)
         {
+            long start = System.currentTimeMillis();
             InputStream xmlFile = sendRequest("http://www.nbp.pl/kursy/xml/"+filename);
+            timer += start - System.currentTimeMillis();
             try {
                 saxParser.parse(xmlFile,handler);
             } catch (CurrencyCalculatorSAXException e) {
@@ -46,6 +49,7 @@ public class NAPCurrencyCalculator {
 
         }
 
+        System.out.println(timer);
     }
 
     private double mean(List<Double> list){
@@ -125,5 +129,7 @@ public class NAPCurrencyCalculator {
         }
         return filenames;
     }
+
+
 
 }

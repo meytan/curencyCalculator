@@ -16,7 +16,9 @@ import java.util.Locale;
 public class MainClass {
 
 
-    public static void main(String[] args) throws IOException, ParserConfigurationException, SAXException {
+    public static void main(String[] args) {
+
+        long programStart = System.currentTimeMillis();
 
         try {
             String currencyName = args[0];
@@ -37,46 +39,25 @@ public class MainClass {
 
 
         }
-        catch(IndexOutOfBoundsException e){
+        catch (IndexOutOfBoundsException e) {
             System.out.println("Wrong arguments! Try again!");
         }
-        catch (DateTimeException e){
+        catch (SAXException e){
+            System.out.println(e.getMessage());
+        }
+        catch (DateTimeException e) {
             System.out.println("Invalid date or date format!");
             System.out.println("Remember valid date format is yyyy-mm-dd!");
         }
+        catch (IOException e){
+            System.out.println("There is something wrong with internet connection.");
+        }
+        catch (ParserConfigurationException e) {
+            e.printStackTrace();
+        }
 
-
-
-
-
-        // #1 40727
-        // #2 37681
-
-        //# parsing xml 2 years:
-        //DOM - 18505
-
-
-//        4.153322908366532
-//        0.0475848739242345
-//        91989
-//        Getting filenames: 805
-//        Sending requests: 72535
-//        Building DOM: 18505
-//        Parsing xml: 92
-
-//        #SAX
-//        4.153322908366532
-//        0.0475848739242345
-//        60062
-//        Getting filenames: 762
-//        Sending requests: 58448
-//        Building DOM: 790
-
+        System.out.println("\n\n\n" + (System.currentTimeMillis() - programStart));
     }
 
-
-
-
-
-
+    // #1 ~190 000
 }
