@@ -9,12 +9,16 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.OptionalDouble;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
-import static pl.parser.nbp.HTTPRequest.sendRequest;
 
 class NAPCurrencyCalculator {
 
@@ -22,24 +26,71 @@ class NAPCurrencyCalculator {
     private List<Double> sellPrices;
     private List<Double> buyPrices;
     private List<String> filenames;
+    private List<InputStream> xmls;
+
 
     NAPCurrencyCalculator(String searchedCurrency) {
         this.searchedCurrency = searchedCurrency;
         sellPrices = new ArrayList<>();
         buyPrices = new ArrayList<>();
         filenames = new ArrayList<>();
+        xmls = new ArrayList<>();
     }
+
+    private void getXMLs(){
+
+        final int threadsNumber = 50;
+
+        List<List<String>> list = new ArrayList<>();
+
+        for( int i = 0; i < filenames.size(); i+= filenames.size()/threadsNumber){
+            int start = i;
+            if(filenames.size() % threadsNumber > list.size())
+                i++;
+            int end = i + filenames.size()/threadsNumber;
+            list.add(filenames.subList(start,end));
+        }
+
+        ExecutorService es = Executors.newCachedThreadPool();
+        for(List<String> sublist : list){
+                es.execute(() -> {
+                    for(int i = 0; i<sublist.size(); i++){
+                        URL url;
+                        try {
+                            url = new URL("http://www.nbp.pl/kursy/xml/" + sublist.get(i));
+                            HttpURLConnection con = (HttpURLConnection) url.openConnection();
+                            con.setRequestMethod("GET");
+                            addXML(con.getInputStream());
+                        } catch (IOException e) {
+                            if(e.getMessage().startsWith("Server returned HTTP response code: 429")) {
+                                i--;
+                            }
+                            else{
+                                System.out.println("There is something wrong with internet connection");
+                            }
+                        }
+                    }
+                });
+        }
+        es.shutdown();
+        try {
+            es.awaitTermination(5, TimeUnit.MINUTES);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+            System.out.println("OR HERE");
+        }
+    }
+
 
     void parse() throws ParserConfigurationException, SAXException, IOException {
         SAXParserFactory parserFactory = SAXParserFactory.newInstance();
         SAXParser saxParser = parserFactory.newSAXParser();
         SAXHandler handler = new SAXHandler(searchedCurrency);
-        long timer = 0;
-        for (String filename : filenames)
+
+        getXMLs();
+
+        for (InputStream xmlFile : xmls)
         {
-            long start = System.currentTimeMillis();
-            InputStream xmlFile = sendRequest("http://www.nbp.pl/kursy/xml/"+filename);
-            timer += start - System.currentTimeMillis();
             try {
                 saxParser.parse(xmlFile,handler);
             } catch (CurrencyCalculatorSAXException e) {
@@ -48,8 +99,6 @@ class NAPCurrencyCalculator {
             }
 
         }
-
-        System.out.println(timer);
     }
 
     private double mean(List<Double> list){
@@ -130,6 +179,17 @@ class NAPCurrencyCalculator {
         return filenames;
     }
 
+    private synchronized void addXML(InputStream is){
+        xmls.add(is);
+    }
+
+    private static InputStream sendRequest(String strURL) throws IOException {
+
+        URL url = new URL(strURL);
+        HttpURLConnection con = (HttpURLConnection) url.openConnection();
+        con.setRequestMethod("GET");
+        return con.getInputStream();
+    }
 
 
 }
