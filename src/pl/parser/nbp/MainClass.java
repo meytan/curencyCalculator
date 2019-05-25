@@ -1,105 +1,82 @@
 package pl.parser.nbp;
 
-import org.w3c.dom.Document;
 import org.xml.sax.SAXException;
 
-import javax.xml.parsers.DocumentBuilder;
-import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.HttpURLConnection;
-import java.net.URL;
+import java.math.RoundingMode;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
+import java.time.DateTimeException;
 import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.time.format.DateTimeFormatter;
+import java.util.Locale;
 
 
 public class MainClass {
 
+
     public static void main(String[] args) throws IOException, ParserConfigurationException, SAXException {
 
-//        DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
-//        LocalDate start = LocalDate.parse("2013-01-28",dtf);
-//        LocalDate end = LocalDate.parse("2014-01-31",dtf);
-//        List<String> filenames =getFilenamesBetweenDates(start, end);
-//        for(String filename : filenames){
-//            System.out.println(filename);
-//        }
+        try {
+            String currencyName = args[0];
+            DateTimeFormatter dtf = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+            LocalDate start = LocalDate.parse(args[1], dtf);
+            LocalDate end = LocalDate.parse(args[2], dtf);
 
-        Document doc = getXML("c001z130102.xml");
+            NAPCurrencyCalculator currencyCalculator = new NAPCurrencyCalculator(currencyName);
+            currencyCalculator.getFilenamesBetweenDates(start, end);
+            currencyCalculator.parse();
 
-        System.out.println(doc.getDocumentElement().getNodeName());
+            DecimalFormat df = new DecimalFormat("#.####");
+            df.setRoundingMode(RoundingMode.HALF_UP);
+            df.setDecimalFormatSymbols(DecimalFormatSymbols.getInstance(Locale.GERMAN));
 
-
-    }
-
-    public static InputStream sendRequest(String strURL) throws IOException {
-
-        URL url = new URL(strURL);
-        HttpURLConnection con = (HttpURLConnection) url.openConnection();
-        con.setRequestMethod("GET");
-        return con.getInputStream();
+            System.out.println(df.format(currencyCalculator.getMeanOfBuyingPrices()));
+            System.out.println(df.format(currencyCalculator.getStandardDeviationOfSellingPrices()));
 
 
-    }
-
-    public static List<String> getFilenamesBetweenDates(LocalDate start, LocalDate end) throws IOException {
-        List<String> filenameList = new ArrayList<>();
-        String url;
-        int currentYear = LocalDate.now().getYear();
-        int startMonth = start.getMonthValue();
-        int startDay = start.getDayOfMonth();
-        int endMonth = end.getMonthValue();
-        int endDay = end.getDayOfMonth();
-        for(int i = start.getYear();i<=end.getYear();i++){
-
-            if(i!=currentYear)
-                url = "http://www.nbp.pl/kursy/xml/dir" + i + ".txt";
-            else
-                url = "http://www.nbp.pl/kursy/xml/dir.txt";
-
-            BufferedReader response = new BufferedReader(new InputStreamReader(sendRequest(url)));
-            String line;
-            while ((line = response.readLine()) != null) {
-                if(line.startsWith("c")){
-                    if(i==start.getYear()) {
-                        int month = Integer.parseInt(line.substring(7, 9));
-                        int day = Integer.parseInt(line.substring(9, 11));
-
-                        if (month < startMonth)
-                            continue;
-                        else if (month == startMonth)
-                            if (day < startDay)
-                                continue;
-                    }
-                    else if(i == end.getYear()){
-                        int month = Integer.parseInt(line.substring(7, 9));
-                        int day = Integer.parseInt(line.substring(9, 11));
-                        if(month > endMonth)
-                            break;
-                        else if(month == endMonth)
-                            if(day>endDay)
-                                break;
-                    }
-
-
-                    filenameList.add(line + ".xml");
-                }
-            }
-            response.close();
+        }
+        catch(IndexOutOfBoundsException e){
+            System.out.println("Wrong arguments! Try again!");
+        }
+        catch (DateTimeException e){
+            System.out.println("Invalid date or date format!");
+            System.out.println("Remember valid date format is yyyy-mm-dd!");
         }
 
-        return filenameList;
+
+
+
+
+        // #1 40727
+        // #2 37681
+
+        //# parsing xml 2 years:
+        //DOM - 18505
+
+
+//        4.153322908366532
+//        0.0475848739242345
+//        91989
+//        Getting filenames: 805
+//        Sending requests: 72535
+//        Building DOM: 18505
+//        Parsing xml: 92
+
+//        #SAX
+//        4.153322908366532
+//        0.0475848739242345
+//        60062
+//        Getting filenames: 762
+//        Sending requests: 58448
+//        Building DOM: 790
+
     }
 
-    public static Document getXML(String xmlName) throws ParserConfigurationException, IOException, SAXException {
-        DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-        DocumentBuilder builder = factory.newDocumentBuilder();
-        Document doc = builder.parse(sendRequest("http://www.nbp.pl/kursy/xml/" + xmlName));
-        return doc;
-    }
+
+
+
+
 
 }
